@@ -1,0 +1,31 @@
+# Visual Studio build çıktıları
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+build/
+
+# VS kullanıcı/geçici dosyaları
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Derleme ara dosyaları
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.log
+*.tlog
+*.idb
+*.ipdb
+*.iobj
+
+# VS cache
+*.VC.db
+*.VC.opendb
