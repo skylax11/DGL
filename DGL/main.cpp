@@ -3,6 +3,7 @@
 #include <iostream>
 #include "Shader.h"
 #include "Mesh.h"
+#include "Renderer.h"
 
 const char* vertexShaderSource =
 "#version 330 core\n"
@@ -58,14 +59,13 @@ int main() {
 
     std::unique_ptr<Shader> shader = std::make_unique<Shader>(vertexShaderSource, fragmentShaderSource);
 
+    Renderer renderer;
 
     while (!glfwWindowShouldClose(window)) {
-        glClearColor(r, g, b, 1.0f);  
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        //(*shader).use();
-        shader->use();
-        triangle.draw();
+       
+        renderer.begin(r, g, b);
+        renderer.submit(&triangle, shader.get());
+        renderer.end();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
