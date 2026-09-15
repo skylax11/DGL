@@ -4,7 +4,7 @@
 #include "Shader.h"
 #include "Mesh.h"
 #include "Renderer.h"
-
+#include <tuple>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -15,7 +15,10 @@
 const char* vertexPath = "shaders/basic.vert";
 const char* fragmentPath = "shaders/basic.frag";
 
+void handleInputs(GLFWwindow* window, glm::vec3& cubePos, float& rotateDirection);
+std::tuple<glm::mat4, glm::mat4> handleModelTransforms(glm::vec3& cubePos, float rotateDirection);
 void printMatrisOnConsole(glm::mat4& model, int& second, int interval);
+
 
 int main() {
 
@@ -83,23 +86,22 @@ int main() {
     int second = 0;
     int interval = 165;
 
-    glm::mat4 projection = glm::mat4(1.0f);
-
     float fov = glm::radians(45.0f);
     float aspectRatio = 800.0f / 600.0f;
     float near = 0.1f;
     float far = 100.0f;
 
+    glm::vec3 camPos(0, 0, -5);
+    float rotateDirection (1.0f);
+    glm::mat4 projection = glm::perspective(fov, aspectRatio, near, far);
+
     while (!glfwWindowShouldClose(window)) {
        
         renderer.begin(r, g, b);
 
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(1.0f, 1.0f, 1.0f));
+        handleInputs(window,camPos,rotateDirection);
 
-        glm::mat4 projection = glm::perspective(fov,aspectRatio,near,far);
-        glm::mat4 view = glm::mat4(1.0f);
-        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+        auto [model,view] = handleModelTransforms(camPos, rotateDirection);
 
         printMatrisOnConsole(model,second,interval);
 
@@ -117,6 +119,45 @@ int main() {
 
     glfwTerminate();
     return 0;
+}
+void handleInputs(GLFWwindow* window, glm::vec3& camPos,float& rotateDirection)
+{
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    {
+        camPos.y += 0.001f;
+    }
+    else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    {
+        camPos.y -= 0.001f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    {
+        camPos.x += 0.001f;
+    }
+    else if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
+        camPos.x -= 0.001f;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+    {
+        rotateDirection = 1;
+    }
+    else if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+    {
+        rotateDirection = -1;
+    }
+
+}
+std::tuple<glm::mat4, glm::mat4> handleModelTransforms(glm::vec3& camPos,float rotateDirection)
+{
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(1.0f, 1.0f, 1.0f) * rotateDirection);
+
+    glm::mat4 view = glm::mat4(1.0f);
+    view = glm::translate(view, camPos);
+
+    return {model,view};
 }
 void printMatrisOnConsole(glm::mat4& model,int& second,int interval)
 {

@@ -11,7 +11,7 @@ public:
 	~Mesh();
 
 private:
-	unsigned int VAO, VBO;
+	unsigned int VAO, VBO, EBO;
 	int vertexCount;
 
 };
