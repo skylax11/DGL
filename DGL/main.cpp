@@ -10,15 +10,22 @@
 #include <glm/gtc/type_ptr.hpp>
 //#include <glm/gtx/string_cast.hpp>
 #include <cstdlib>
-
+#include "MouseController.h"
+#include "MouseSettings.h"
+#include <algorithm>
 
 const char* vertexPath = "shaders/basic.vert";
 const char* fragmentPath = "shaders/basic.frag";
 
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void handleInputs(GLFWwindow* window, glm::vec3& cubePos, float& rotateDirection);
 std::tuple<glm::mat4, glm::mat4> handleModelTransforms(glm::vec3& cubePos, float rotateDirection);
 void printMatrisOnConsole(glm::mat4& model, int& second, int interval);
 
+std::unique_ptr<MouseController> mouseCt;
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 int main() {
 
@@ -91,11 +98,22 @@ int main() {
     float near = 0.1f;
     float far = 100.0f;
 
-    glm::vec3 camPos(0, 0, -5);
+    glm::vec3 camPos(0, 0, 5);
     float rotateDirection (1.0f);
     glm::mat4 projection = glm::perspective(fov, aspectRatio, near, far);
 
+    MouseSettings mouseSettings (0.1f,90.0f,-90.0f);
+
+    
+    MouseController* mouseCtr = new MouseController(window, mouse_callback, &mouseSettings);
+    mouseCt = std::unique_ptr<MouseController>(mouseCtr);
+
+
     while (!glfwWindowShouldClose(window)) {
+
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
        
         renderer.begin(r, g, b);
 
@@ -120,23 +138,70 @@ int main() {
     glfwTerminate();
     return 0;
 }
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    if (mouseCt->firstMouse)
+    {
+        mouseCt->lastX = xpos;
+        mouseCt->lastY = ypos;
+        mouseCt->firstMouse = false;
+    }
+
+    float xOffset = xpos - mouseCt->lastX;
+    float yOffset = mouseCt->lastY - ypos;
+
+    mouseCt->lastX = xpos;
+    mouseCt->lastY = ypos;
+
+    MouseSettings settings = *(mouseCt->m_settings);
+    float sensitivity = settings.m_sensitivity;
+
+    xOffset *= sensitivity;
+    yOffset *= sensitivity;
+
+    mouseCt->yaw += xOffset;
+    mouseCt->pitch += yOffset;
+
+    mouseCt->pitch = std::clamp(mouseCt->pitch, settings.m_minPitch, settings.m_maxPitch);
+
+    glm::vec3 direction;
+
+    float xzLen = glm::cos(glm::radians(mouseCt->pitch));
+
+    direction.x = xzLen * cos(glm::radians(mouseCt->yaw));
+    direction.y = glm::sin(glm::radians(mouseCt->pitch));
+    direction.z = xzLen * glm::sin(glm::radians(mouseCt->yaw));
+
+    mouseCt->cameraFront = glm::normalize(direction);
+    mouseCt->right = glm::normalize(glm::cross(mouseCt->cameraFront, glm::vec3(0, 1, 0)));
+}
 void handleInputs(GLFWwindow* window, glm::vec3& camPos,float& rotateDirection)
 {
+    float speed = 1.0f;
+
+    glm::vec3 front = mouseCt->cameraFront;
+    front.y = 0;
+    front = glm::normalize(front);
+
+    glm::vec3 right = mouseCt->right;
+    right.y = 0;
+    right = glm::normalize(right);
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        camPos.y += 0.001f;
+        camPos += front * speed * deltaTime;
     }
     else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        camPos.y -= 0.001f;
+        camPos -= front * speed * deltaTime;
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        camPos.x += 0.001f;
+        camPos += right * speed * deltaTime;
     }
     else if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        camPos.x -= 0.001f;
+        camPos -= right * speed * deltaTime;
     }
 
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
@@ -155,7 +220,7 @@ std::tuple<glm::mat4, glm::mat4> handleModelTransforms(glm::vec3& camPos,float r
     model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(1.0f, 1.0f, 1.0f) * rotateDirection);
 
     glm::mat4 view = glm::mat4(1.0f);
-    view = glm::translate(view, camPos);
+    view = glm::lookAt(camPos, camPos + mouseCt->cameraFront, glm::vec3(0, 1, 0));
 
     return {model,view};
 }

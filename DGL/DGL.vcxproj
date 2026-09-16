@@ -142,11 +142,15 @@
     <ClCompile Include="..\..\..\..\Desktop\glad.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="MouseController.cpp" />
+    <ClCompile Include="MouseSettings.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Shader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="MouseController.h" />
+    <ClInclude Include="MouseSettings.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Shader.h" />
   </ItemGroup>
