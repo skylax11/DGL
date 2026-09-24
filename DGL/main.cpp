@@ -10,7 +10,7 @@
 #include <glm/gtc/type_ptr.hpp>
 //#include <glm/gtx/string_cast.hpp>
 #include <cstdlib>
-#include "MouseController.h"
+#include "CameraController.h"
 #include "MouseSettings.h"
 #include <algorithm>
 
@@ -19,10 +19,13 @@ const char* fragmentPath = "shaders/basic.frag";
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void handleInputs(GLFWwindow* window, glm::vec3& cubePos, float& rotateDirection);
-std::tuple<glm::mat4, glm::mat4> handleModelTransforms(glm::vec3& cubePos, float rotateDirection);
+
+glm::mat4 handleModelTransforms(glm::vec3& basePosition,float rotateDirection);
+glm::mat4 handleViewTransforms(glm::vec3& camPos);
+
 void printMatrisOnConsole(glm::mat4& model, int& second, int interval);
 
-std::unique_ptr<MouseController> mouseCt;
+std::unique_ptr<CameraController> mouseCt;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -55,13 +58,6 @@ int main() {
     float g{ 0.6f };
     float b{ 0.3f };
 
-    std::vector<float> triangleVertices =
-    {
-        -0.5f,  -0.5f,   0,
-        0.5f,   -0.5f,   0,
-        0,      0.5f,    0
-    };
-
     std::vector<float> cubeVertices = {
 
         -0.5f,-0.5f,-0.5f, 1.0f,0.0f,0.0f,  0.5f,-0.5f,-0.5f, 1.0f,0.0f,0.0f,  0.5f, 0.5f,-0.5f, 1.0f,0.0f,0.0f,
@@ -83,8 +79,15 @@ int main() {
          0.5f, 0.5f, 0.5f, 0.0f,1.0f,1.0f, -0.5f, 0.5f, 0.5f, 0.0f,1.0f,1.0f, -0.5f, 0.5f,-0.5f, 0.0f,1.0f,1.0f
     };
 
-    Mesh triangle(triangleVertices);
     Mesh cube(cubeVertices);
+
+    std::vector<glm::vec3> cubePositions = {
+    glm::vec3(0.0f, 0.0f,  0.0f),
+    glm::vec3(1.5f, 0.0f,  0.0f),
+    glm::vec3(-1.5f, 0.0f,  0.0f),
+    glm::vec3(0.0f, 1.5f,  0.0f),
+    glm::vec3(0.0f,-1.5f,  0.0f)
+    };
 
     std::unique_ptr<Shader> shader = std::make_unique<Shader>(vertexPath, fragmentPath);
 
@@ -105,8 +108,8 @@ int main() {
     MouseSettings mouseSettings (0.1f,90.0f,-90.0f);
 
     
-    MouseController* mouseCtr = new MouseController(window, mouse_callback, &mouseSettings);
-    mouseCt = std::unique_ptr<MouseController>(mouseCtr);
+    CameraController* mouseCtr = new CameraController(window, mouse_callback, &mouseSettings);
+    mouseCt = std::unique_ptr<CameraController>(mouseCtr);
 
 
     while (!glfwWindowShouldClose(window)) {
@@ -119,16 +122,23 @@ int main() {
 
         handleInputs(window,camPos,rotateDirection);
 
-        auto [model,view] = handleModelTransforms(camPos, rotateDirection);
-
-        printMatrisOnConsole(model,second,interval);
-
         shader->use();
         shader->setMat4("uProjection", projection);
-        shader->setMat4("uView", view);
-        shader->setMat4("uModel", model);
 
-        renderer.submit(&cube, shader.get());
+        glm::mat4 view = handleViewTransforms(camPos);
+        shader->setMat4("uView", view);
+
+        for (int i = 0; i < cubePositions.size(); i++)
+        {
+            glm::mat4 model = handleModelTransforms(cubePositions[i],rotateDirection);
+
+            printMatrisOnConsole(model, second, interval);
+
+            shader->setMat4("uModel", model);
+
+            renderer.submit(&cube, shader.get(),model);
+        }
+
         renderer.end();
 
         glfwSwapBuffers(window);
@@ -214,15 +224,20 @@ void handleInputs(GLFWwindow* window, glm::vec3& camPos,float& rotateDirection)
     }
 
 }
-std::tuple<glm::mat4, glm::mat4> handleModelTransforms(glm::vec3& camPos,float rotateDirection)
+glm::mat4 handleModelTransforms(glm::vec3& basePosition,float rotateDirection)
 {
     glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, basePosition);
     model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(1.0f, 1.0f, 1.0f) * rotateDirection);
 
+    return model;
+}
+glm::mat4 handleViewTransforms(glm::vec3& camPos)
+{
     glm::mat4 view = glm::mat4(1.0f);
     view = glm::lookAt(camPos, camPos + mouseCt->cameraFront, glm::vec3(0, 1, 0));
 
-    return {model,view};
+    return view;
 }
 void printMatrisOnConsole(glm::mat4& model,int& second,int interval)
 {

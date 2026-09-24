@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #pragma once
-class MouseController
+class CameraController
 {
 public:
 
@@ -19,10 +19,10 @@ public:
 
 	MouseSettings* m_settings;
 
-	MouseController(GLFWwindow* window, void (*fn)(GLFWwindow* window, double xpos, double ypos), MouseSettings* mouseSettings);
+	CameraController(GLFWwindow* window, void (*fn)(GLFWwindow* window, double xpos, double ypos), MouseSettings* mouseSettings);
 	void SetMouseProperties(float _sensitivity, float _maxPitch, float _minPitch);
 
-	~MouseController();
+	~CameraController();
 private:
 
 	float delta;

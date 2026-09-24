@@ -1,11 +1,11 @@
-#include "MouseController.h"
+#include "CameraController.h"
 #include "MouseSettings.h"
 #include <GLFW/glfw3.h>
 #include <glm/fwd.hpp>
 
 
 
-MouseController::MouseController(GLFWwindow* window, void(*fn)(GLFWwindow* window, double xpos, double ypos), MouseSettings* mouseSettings)
+CameraController::CameraController(GLFWwindow* window, void(*fn)(GLFWwindow* window, double xpos, double ypos), MouseSettings* mouseSettings)
 {
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetCursorPosCallback(window, fn);
@@ -14,13 +14,13 @@ MouseController::MouseController(GLFWwindow* window, void(*fn)(GLFWwindow* windo
 	SetMouseProperties(mouseSettings->m_sensitivity, mouseSettings->m_maxPitch, mouseSettings->m_minPitch);
 }
 
-void MouseController::SetMouseProperties(float _sensitivity, float _maxPitch, float _minPitch)
+void CameraController::SetMouseProperties(float _sensitivity, float _maxPitch, float _minPitch)
 {
 	sensitivity = _sensitivity;
 	maxPitch = _maxPitch;
 	minPitch = _minPitch;
 }
 
-MouseController::~MouseController()
+CameraController::~CameraController()
 {
 }

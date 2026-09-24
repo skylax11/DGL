@@ -7,6 +7,7 @@ struct RenderCommand
 {
 	Mesh* mesh;
 	Shader* shader;
+	glm::mat4 model;
 };
 
 class Renderer
@@ -15,7 +16,7 @@ public:
 	
 	void begin(float r, float g, float b);
 
-	void submit(Mesh* mesh, Shader* shader);
+	void submit(Mesh* mesh, Shader* shader, glm::mat4 model);
 
 	void end();
 

@@ -10,11 +10,13 @@ void Renderer :: begin(float r, float g, float b)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void Renderer::submit(Mesh* mesh, Shader* shader)
+void Renderer::submit(Mesh* mesh, Shader* shader,glm::mat4 model)
 {
 	RenderCommand command;
+
 	command.mesh = mesh;
 	command.shader = shader;
+	command.model = model;
 
 	commands.push_back(command);
 }
@@ -24,6 +26,7 @@ void Renderer::end()
 
 	for (const RenderCommand& command : commands) {
 		command.shader->use();
+		command.shader->setMat4("uModel", command.model);
 		command.mesh->draw();
 	}
 }
