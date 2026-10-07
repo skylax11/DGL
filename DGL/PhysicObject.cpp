@@ -1,7 +1,9 @@
 #include "PhysicObject.h"
 
-PhysicObject::PhysicObject(std::vector<float>& _vertices, glm::vec3 _position,float _offSet) 
-    : position (_position), offSet(_offSet)
+PhysicObject::PhysicObject(std::vector<float>& _vertices, 
+    glm::vec3 _position,glm::vec3 _rotation,glm::vec3 _scale,
+    float _offSet,bool _isStatic) 
+    : position (_position),rotation (_rotation), scale(_scale), offSet(_offSet), isStatic(_isStatic), velocity(glm::vec3(0, 0, 0))
 {
     initHalfExtents(_vertices);
 }
@@ -72,6 +74,41 @@ void PhysicObject::initHalfExtents(std::vector<float>& vertices)
     }
 
     halfExtents = (maxPoint - minPoint) * 0.5f;
+    halfExtents *= scale;
+}
+
+void PhysicObject::addVelo(glm::vec3 velo)
+{
+    velocity += velo;
+}
+
+void PhysicObject::resolveVelocity(const glm::vec3& pushDir)
+{
+    if (isStatic)
+    {
+        return;
+    }
+
+    for (int k = 0; k < 3; k++)
+    {
+        bool pushedPositive_movingNegative = pushDir[k] > 0.0f && velocity[k] < 0.0f;
+        bool pushedNegative_movingPositive = pushDir[k] < 0.0f && velocity[k] > 0.0f;
+
+        if (pushedPositive_movingNegative || pushedNegative_movingPositive)
+        {
+            velocity[k] = 0.0f;
+        }
+    }
+}
+
+void PhysicObject::integratePosition(float dt)
+{
+    if (isStatic)
+    {
+        return;
+    }
+
+    position += velocity * dt;
 }
 
 glm::vec3 PhysicObject::getMaxPoints() const

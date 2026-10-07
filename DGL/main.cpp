@@ -20,17 +20,22 @@ const char* fragmentPath = "shaders/basic.frag";
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void handleMovement(GLFWwindow* window, glm::vec3& cubePos, float& rotateDirection);
-void handleCollisions(GLFWwindow* window, std::vector<PhysicObject*>& collisionList);
+void handleCollisions(std::vector<PhysicObject*>& collisionList);
 
-glm::mat4 handleModelTransforms(glm::vec3& basePosition,float rotateDirection);
-glm::mat4 handleViewTransforms(glm::vec3& camPos);
+glm::mat4 handleModelTransforms(const PhysicObject& object,float rotateDirection);
+glm::mat4 handleViewTransforms(const glm::vec3& camPos);
 
 void printMatrisOnConsole(glm::mat4& model, int& second, int interval);
+
+void applyGravity(const std::vector<PhysicObject*>& objectList);
+void integratePositions(const std::vector<PhysicObject*>& objectList);
 
 std::unique_ptr<CameraController> mouseCt;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+const glm::vec3 gravity(0,-9.81f,0);
 
 int main() {
 
@@ -84,10 +89,12 @@ int main() {
     Mesh cube(cubeVertices);
 
     std::vector<glm::vec3> cubePositions = {
+    glm::vec3(0.0f, 4.5f,  0.0f),
+    glm::vec3(0.0f, 2.5f,  0.0f),
+    glm::vec3(0.0f, 0.5f,  0.0f),
     glm::vec3(0.0f, 0.0f,  0.0f),
     glm::vec3(1.5f, 0.0f,  0.0f),
     glm::vec3(-0.5f, 0.0f,  0.0f),
-    glm::vec3(0.0f, 0.5f,  0.0f),
     glm::vec3(0.0f,-0.5f,  0.0f)
     };
 
@@ -95,7 +102,7 @@ int main() {
 
     for (int i = 0; i < cubeList.size(); i++)
     {
-        cubeList[i] = new PhysicObject(cubeVertices,cubePositions[i],0.25f);
+        cubeList[i] = new PhysicObject(cubeVertices,cubePositions[i],glm::vec3 (0,1,0), glm::vec3(1, 1, 1), 0.0f, false);
     }
 
     std::unique_ptr<Shader> shader = std::make_unique<Shader>(vertexPath, fragmentPath);
@@ -120,17 +127,32 @@ int main() {
     CameraController* mouseCtr = new CameraController(window, mouse_callback, &mouseSettings);
     mouseCt = std::unique_ptr<CameraController>(mouseCtr);
 
+    std::unique_ptr<PhysicObject> ground = std::make_unique<PhysicObject>(
+        cubeVertices,              
+        glm::vec3(0.0f, -3.0f, 0.0f),  
+        glm::vec3(0.0f, 0.0f, 0.0f),   
+        glm::vec3(20.0f, 1.0f, 20.0f), 
+        0.0f,                 
+        true                  
+    );
+
+    cubeList.push_back(ground.get());
 
     while (!glfwWindowShouldClose(window)) {
 
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-       
+        deltaTime = std::min(deltaTime, 1.0f / 30.0f);
+
         renderer.begin(r, g, b);
 
         handleMovement(window,camPos,rotateDirection);
-        handleCollisions(window,cubeList);
+
+        applyGravity(cubeList);
+        integratePositions(cubeList);
+
+        handleCollisions(cubeList);
 
         shader->use();
         shader->setMat4("uProjection", projection);
@@ -140,7 +162,7 @@ int main() {
 
         for (int i = 0; i < cubeList.size(); i++)
         {
-            glm::mat4 model = handleModelTransforms(cubeList[i]->position,rotateDirection);
+            glm::mat4 model = handleModelTransforms(*cubeList[i],rotateDirection);
 
             //printMatrisOnConsole(model, second, interval);
 
@@ -170,34 +192,78 @@ void fixCollisions(std::vector<PhysicObject*>& objectList)
         {
             PhysicObject& b = *(c[j]);
 
-            if (a.collidesWith(b))
+            if (a.isStatic && b.isStatic)
             {
-                auto [aMin,aMax] = a.getAABB();
-                auto [bMin,bMax] = b.getAABB();
-
-                float overlapX = std::min(aMax.x, bMax.x) - std::max(aMin.x, bMin.x);
-                float overlapY = std::min(aMax.y, bMax.y) - std::max(aMin.y, bMin.y);
-                float overlapZ = std::min(aMax.z, bMax.z) - std::max(aMin.z, bMin.z);
-
-                glm::vec3 push(0.0f);
-                if (overlapX <= overlapY && overlapX <= overlapZ)
-                    push.x = overlapX * a.getDirectionTo(b, AABBCompareAxis::X);
-                else if (overlapY <= overlapZ)
-                    push.y = overlapY * a.getDirectionTo(b, AABBCompareAxis::Y);
-                else
-                    push.z = overlapZ * a.getDirectionTo(b, AABBCompareAxis::Z);
-
-                glm::vec3 half = push * 0.5f;
-
-                (a).position += half;
-                (b).position -= half;
+                continue;
             }
+
+            if (!a.collidesWith(b))
+            {
+                continue;
+            }
+
+            auto [aMin, aMax] = a.getAABB();
+            auto [bMin, bMax] = b.getAABB();
+
+            float overlapX = std::min(aMax.x, bMax.x) - std::max(aMin.x, bMin.x);
+            float overlapY = std::min(aMax.y, bMax.y) - std::max(aMin.y, bMin.y);
+            float overlapZ = std::min(aMax.z, bMax.z) - std::max(aMin.z, bMin.z);
+
+            glm::vec3 push(0.0f);
+            if (overlapX <= overlapY && overlapX <= overlapZ)
+                push.x = overlapX * a.getDirectionTo(b, AABBCompareAxis::X);
+            else if (overlapY <= overlapZ)
+                push.y = overlapY * a.getDirectionTo(b, AABBCompareAxis::Y);
+            else
+                push.z = overlapZ * a.getDirectionTo(b, AABBCompareAxis::Z);
+
+            glm::vec3 half = push * 0.5f;
+
+            if (a.isStatic)
+            {
+                b.position -= push;           
+            }
+            else if (b.isStatic)
+            {
+                a.position += push;           
+            }
+            else
+            {
+                a.position += push * 0.5f;    
+                b.position -= push * 0.5f;
+            }
+
+            a.resolveVelocity(push);          
+            b.resolveVelocity(-push);         
         }
     }
 }
-void handleCollisions(GLFWwindow* window,std::vector<PhysicObject*>& objectList)
+void integratePositions(const std::vector<PhysicObject*>& objectList)
 {
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+    for (int i = 0; i < objectList.size();i++)
+    {
+        PhysicObject& obj = *objectList[i];
+
+        obj.integratePosition(deltaTime);
+    }
+}
+void applyGravity(const std::vector<PhysicObject*>& objectList)
+{
+    for (int i = 0; i < objectList.size();i++)
+    {
+        PhysicObject& obj = *objectList[i];
+
+        if (obj.isStatic)
+        {
+            continue;
+        }
+
+        obj.addVelo(gravity * deltaTime);
+    }
+}
+void handleCollisions(std::vector<PhysicObject*>& objectList)
+{
+    for (int k = 0; k < 6; k++)
     {
         fixCollisions(objectList);
     }
@@ -277,15 +343,22 @@ void handleMovement(GLFWwindow* window, glm::vec3& camPos,float& rotateDirection
         rotateDirection = -1;
     }
 }
-glm::mat4 handleModelTransforms(glm::vec3& basePosition,float rotateDirection)
+glm::mat4 handleModelTransforms(const PhysicObject& object,float rotateDirection)
 {
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, basePosition);
-    model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(1.0f, 1.0f, 1.0f) * rotateDirection);
+
+    model = glm::translate(model, object.position);
+
+    if (glm::length(object.rotation) > 0.0f)
+    {
+        model = glm::rotate(model, (float)glfwGetTime(), object.rotation * rotateDirection);
+    }    
+    
+    model = glm::scale(model, object.scale);
 
     return model;
 }
-glm::mat4 handleViewTransforms(glm::vec3& camPos)
+glm::mat4 handleViewTransforms(const glm::vec3& camPos)
 {
     glm::mat4 view = glm::mat4(1.0f);
     view = glm::lookAt(camPos, camPos + mouseCt->cameraFront, glm::vec3(0, 1, 0));

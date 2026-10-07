@@ -16,8 +16,12 @@ class PhysicObject
 public:
 
 	glm::vec3 position;
+	glm::vec3 rotation;
+	glm::vec3 scale;
 
-	PhysicObject(std::vector<float>& _vertices, glm::vec3 _position,float offSet);
+	bool isStatic;
+
+	PhysicObject(std::vector<float>& _vertices, glm::vec3 _position,glm::vec3 _rotation,glm::vec3 _scale,float offSet,bool _isStatic);
 
 	std::tuple<glm::vec3,glm::vec3> getAABB() const;
 
@@ -26,7 +30,13 @@ public:
 
 	void initHalfExtents(std::vector<float>& _vertices);
 
+	void addVelo(glm::vec3 velo);
+	void resolveVelocity(const glm::vec3& pushDir);
+	void integratePosition(float dt);
+
 private:
+
+	glm::vec3 velocity;
 
 	glm::vec3 halfExtents;
 
